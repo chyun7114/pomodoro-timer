@@ -1,5 +1,5 @@
 type TimerButtonProps = {
-    text: string; // 버튼에 표시할 텍스트
+    text: number; // 버튼에 표시할 텍스트
     onClick: () => void; // 클릭 핸들러
 };
 

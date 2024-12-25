@@ -1,52 +1,64 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import TimerButton from "./TimerButton";
+import Clock from "./Clock.tsx";
 
 const Timer = () => {
-    const [minute, setMinute] = useState(10);
+    const [minute, setMinute] = useState(0);
     const [second, setSecond] = useState(0);
-    const [isRunning, setIsRunning] = useState(false);
-    const [timerId, setTimerId] = useState<number | null>(null); // 타이머 ID 저장
+    const clockRef = useRef<HTMLDivElement | null>(null); // 시계 참조
+    const handlerRef = useRef<HTMLDivElement | null>(null); // 핸들러 참조
 
-    const startTimer = () => {
-        if (isRunning) return; // 이미 실행 중이면 중단
-        setIsRunning(true);
+    useEffect(() => {
+        if (clockRef.current) {
+            console.log("Clock ref is available:", clockRef.current);
+        }
+    }, []);
 
-        const id = window.setInterval(() => {
-            setSecond((prevSecond) => {
-                if (prevSecond === 0) {
-                    if (minute > 0) {
-                        setMinute((prevMinute) => prevMinute - 1);
-                        return 59;
-                    } else {
-                        stopTimer(); // 타이머 종료
-                        return 0;
-                    }
-                }
-                return prevSecond - 1;
-            });
-        }, 1000);
+    const calculateAngle = (e: MouseEvent) => {
+        if (!clockRef.current) {
+            console.warn("Clock ref is null");
+            return;
+        }
 
-        setTimerId(id); // 타이머 ID 저장
+        const rect = clockRef.current!.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI) + 90;
+        return angle < 0 ? angle + 360 : angle;
     };
 
-    const stopTimer = () => {
-        if (timerId !== null) {
-            window.clearInterval(timerId); // 타이머 중지
-            setTimerId(null); // 타이머 ID 초기화
-        }
-        setIsRunning(false);
+    const handleDrag = (e: React.MouseEvent) => {
+        e.preventDefault();
+
+        const onMouseMove = (event: MouseEvent) => {
+            const angle = calculateAngle(event);
+            if (angle === undefined) return;
+
+            // 각도를 분으로 변환 (360도 = 60분, 6도 = 1분)
+            const newMinute = Math.floor(angle / 6);  // 360도 / 60분 = 6도
+
+            // 분 값이 0과 59 사이로 제한되도록 함
+            const limitedMinute = Math.min(Math.max(newMinute, 0), 59);
+
+            setMinute(limitedMinute);
+        };
+
+        const onMouseUp = () => {
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+        };
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
     };
 
     return (
-        <div className="flex items-center justify-center h-screen bg-gray-50 flex-col">
-            <div className="text-center p-6">
-                <p className="text-2xl font-bold">
-                    {String(minute).padStart(2, "0")} : {String(second).padStart(2, "0")}
-                </p>
+        <div className="flex items-center justify-center h-screen bg-yellow-50 flex-col gap-12">
+            <div className="w-96 h-96 relative">
+                <Clock clockRef={clockRef} handlerRef={handlerRef} minute={minute} handleDrag={handleDrag} />
             </div>
             <div className="w-full flex justify-center gap-4">
-                <TimerButton text={"시작"} onClick={startTimer} />
-                <TimerButton text={"종료"} onClick={stopTimer} />
+                {minute} : {second}
             </div>
         </div>
     );
